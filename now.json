@@ -1,0 +1,15 @@
+{
+    "version": 2,
+    "name": "PrismaYogaHerokuNow",
+    "builds": [
+        { "src": "src/index.js", "use": "@now/node-server" }
+    ],
+    "routes": [
+        { "src": "/.*", "dest": "src/index.js" }
+    ],
+    "env": {
+        "PRISMA_ENDPOINT":"@pyhn_prisma_endpoint",
+        "FRONTEND_URL":"@pyhn_frontend_url",
+        "PRISMA_SECRET":"@pyhn_prisma_secret"
+    }
+}
