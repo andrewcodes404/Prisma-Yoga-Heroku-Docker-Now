@@ -1,19 +1,7 @@
 Prisma ~ Yoga ~ Heroku ~ Docker ~ Now ~ Setup & Deploy
 ======================================================
 
-## to begin...
-Really you want to run through these instructions and build from scratch
-But if you do clone this you will need to create two .env files
-.env 
-PRISMA_ENDPOINT=http://localhost:4466
-PRISMA_SECRET=#####
-
-.env.prod
-PRISMA_ENDPOINT=######
-PRISMA_SECRET= 👆the same as above
-
-
-###Your prisma and yoga are two seperate entities
+Your prisma and yoga are two seperate entities
 
 **Prisma **is a connection to a database that allows you to access the db with graphl framework, it also allows you access to the graphQL playground
 
@@ -61,17 +49,48 @@ Using Prisma —version 1.34
 
 you may get an error that the port is already taken, at the moment i’m deleting the other containers
 
+```jsx
+$ docker container ls
+```
+
+To view what ports are being used
+
+```jsx
+CONTAINER ID        IMAGE                       COMMAND                  CREATED             STATUS              PORTS                    NAMES
+63de77bce294        prismagraphql/prisma:1.34   "/bin/sh -c /app/sta…"   57 seconds ago      Up 56 seconds       0.0.0.0:4467->4467/tcp   ac404-backend_prisma_1
+88826b630e35        prismagraphql/prisma:1.34   "/bin/sh -c /app/sta…"   9 days ago          Up About an hour    0.0.0.0:4466->4466/tcp   prismayogaherokunow_prisma_1
+```
+
+**UPDATE** /docker-compose.yml
+
+You can change these ports to find one that is free
+
+```jsx
+ ports:
+      - '4467:4467'
+    environment:
+      PRISMA_CONFIG: |
+        port: 4467
+```
+
+DON’T CHANGE THIS PORT it stays at 3306
+
+```jsx
+ default:
+  connector: mysql
+  host: mysql
+  port: 3306
+```
+
+Or you can…. delete all the ports you are using
+
 [https://docs.docker.com/engine/reference/commandline/container\_ls/](https://docs.docker.com/engine/reference/commandline/container_ls/)
 
 $ docker container ls
 
 $ docker container kill \<cont ID\>
 
-or prune it. ?
-
-$ docker system prune -f
-
-when we get to
+### when we get to
 
 ```jsx
 $ prisma init --endpoint http://localhost:4466
@@ -80,10 +99,16 @@ $ prisma init --endpoint http://localhost:4466
 it generates two files prisma.yml and  and datamodel.prisma , the minimal needed to run prisma
 
 ```jsx
-$ prisma deploy
+$ prisma deploy:
 ```
 
-### ☝️that’s it prisma is setup locally and running on
+### ☠️ ! You already have nodes for this model. This change may result in data loss.
+
+You are overriding a db go back and check the ports in /docker-compose.yml
+
+### 
+
+### ☝️ if prisma deploy runs then that’s it prisma is setup locally and running on
 
 <http://localhost:4466>. And [http://localhost:4466/\_admin](http://localhost:4466/_admin)
 
@@ -115,7 +140,7 @@ $ prisma deploy -n
 
 And pick the new DB you created
 
-This will auto change your prisma.yml, comment out the local host
+This will auto change your prisma.yml and comment out the local host
 
 ```jsx
 #endpoint: http://localhost:4466
@@ -123,7 +148,7 @@ endpoint: https://prs-yog-her-now-f085b7bce8.herokuapp.com/PrismaYogaHerokuNow/p
 datamodel: datamodel.prisma
 ```
 
-We can switch betwen the two by un-commenting out the one we want to use
+You could switch betwen the two by un-commenting out the one we want to use but instead...
 
 Lets create some ENV vars and run a script for dev or prod
 ----------------------------------------------------------
@@ -163,11 +188,13 @@ Update /package.json
 ```jsx
 "scripts": {
     "deploy-dev": "prisma deploy --env-file .env",
-    "deploy-prod": "prisma deploy --env-file .env.prod"
+    "deploy-prod": "prisma deploy --env-file .env.prod",
+    "token-dev": "prisma token --env-file .env",
+    "token-prod": "prisma token --env-file .env.prod"
   },
 ```
 
-Now update the data model.prisma
+Now update the data model.prisma to test if when we deploy it updates
 
 ```jsx
 type User {
@@ -205,6 +232,27 @@ This is the answer👇
 
 you create a token in the CLI $ prisma token
 
+---
+
+🔥EDIT still had problems with the dev and prod versions working 
+
+so I cahnaged the secret in env.prod
+
+```jsx
+PRISMA_SECRET=myPrismaSecretForProd
+```
+
+Then useed the new scripts depending on which version i wanted a token for
+
+```jsx
+"token-dev": "prisma token --env-file .env",
+"token-prod": "prisma token --env-file .env.prod"
+```
+
+And it seems to work this way
+
+---
+
 then you manually add it in the [http://localhost:4466/\_admin](http://localhost:4466/_admin). Clik the settings cog
 
 ![](resources/88B8407030ED31117E491224E36258A9.jpg)
@@ -241,7 +289,7 @@ projects:
     schemaPath: "src/schema.graphql"
     extensions:
       endpoints:
-        default: "http://localhost:4444"
+        default: "http://localhost:4000"
   prisma:
     schemaPath: "src/generated/prisma.graphql"
     extensions:
@@ -445,7 +493,15 @@ AH HA NEARLY THERE
 
 $npm run dev
 
-now the yoga wrpapper should be running on localhost:4444
+now the yoga wrpapper should be running on localhost:4000
+
+the default port is 4000 if you want to change this add a Port variable to the .env file
+
+```jsx
+PORT=4444
+```
+
+
 
 ```jsx
 query allUsers {
@@ -508,16 +564,16 @@ add ""writeSchema": "node src/writeSchema.js””
 "scripts": {
     "start": "nodemon -e js,graphql -x node src/index.js",
     "dev": "nodemon -e js,graphql -x node --inspect src/index.js",
-    "deploy-dev": "prisma deploy --env-file .env && npm run writeSchema",
-    "deploy-prod": "prisma deploy --env-file .env.prod && npm run writeSchema",
-    "writeSchema": "node src/writeSchema.js"
+    "deploy-dev": "prisma deploy --env-file .env && npm run write-schema",
+    "deploy-prod": "prisma deploy --env-file .env.prod && npm run write-schema",
+    "write-schema": "node src/writeSchema.js",
   },
 ```
 
 Now run a script to create the new schema
 
 ```jsx
-$ npm run writeSchema
+$ npm run write-schema
 ```
 
 make sure it ran properly you should have a new file schema\_prep.graphql
@@ -594,11 +650,11 @@ z_notepad.txt
     "routes": [
         { "src": "/.*", "dest": "src/index.js" }
     ],
-    "env": {
+     "env": {
+        //👇 change _app_name_ to the name of your app 👇
         "PRISMA_ENDPOINT":"@app_name_prisma_endpoint",
         "PRISMA_SECRET":"@app_name_prisma_secret",
-        
-        // You dont know this yet as we havent set up the frontend so add it anyway add app_name_frontend_url TBD
+        // 👇 You dont know this yet as we havent set up the frontend so add it anyway add app_name_frontend_url TBD
         "FRONTEND_URL":"@app_name_frontend_url",
     }
 }
